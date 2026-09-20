@@ -1,25 +1,32 @@
 import XCTest
 import Capacitor
-@testable import Plugin
+@testable import NativeAudio
 
 class PluginTests: XCTestCase {
+    func testPluginIsRegisteredUnderItsJavaScriptName() {
+        let plugin = NativeAudio()
 
-    func testEcho() {
-        // This is an example of a functional test case for a plugin.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
+        XCTAssertEqual(plugin.identifier, "NativeAudio")
+        XCTAssertEqual(plugin.jsName, "NativeAudio")
+    }
 
-        let value = "Hello, World!"
-        let plugin = MyPlugin()
+    func testPluginExposesItsMethodsAsPromises() {
+        let plugin = NativeAudio()
 
-        let call = CAPPluginCall(callbackId: "test", options: [
-            "value": value
-        ], success: { (result, _) in
-            let resultValue = result!.data["value"] as? String
-            XCTAssertEqual(value, resultValue)
-        }, error: { (_) in
-            XCTFail("Error shouldn't have been called")
-        })
-
-        plugin.echo(call!)
+        XCTAssertEqual(plugin.pluginMethods.map(\.name), [
+            "configure",
+            "preload",
+            "play",
+            "stop",
+            "loop",
+            "pause",
+            "resume",
+            "unload",
+            "setVolume",
+            "getCurrentTime",
+            "getDuration",
+            "isPlaying"
+        ])
+        XCTAssertTrue(plugin.pluginMethods.allSatisfy { $0.returnType == .promise })
     }
 }

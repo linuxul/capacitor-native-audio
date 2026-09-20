@@ -16,18 +16,18 @@ public class NativeAudio: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "NativeAudio" 
     public let jsName = "NativeAudio" 
     public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "configure", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "preload", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "play", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "stop", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "loop", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "pause", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "resume", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "unload", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "setVolume", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "getCurrentTime", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "getDuration", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "isPlaying", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "configure", returnType: .promise),
+        CAPPluginMethod(name: "preload", returnType: .promise),
+        CAPPluginMethod(name: "play", returnType: .promise),
+        CAPPluginMethod(name: "stop", returnType: .promise),
+        CAPPluginMethod(name: "loop", returnType: .promise),
+        CAPPluginMethod(name: "pause", returnType: .promise),
+        CAPPluginMethod(name: "resume", returnType: .promise),
+        CAPPluginMethod(name: "unload", returnType: .promise),
+        CAPPluginMethod(name: "setVolume", returnType: .promise),
+        CAPPluginMethod(name: "getCurrentTime", returnType: .promise),
+        CAPPluginMethod(name: "getDuration", returnType: .promise),
+        CAPPluginMethod(name: "isPlaying", returnType: .promise),
     ] 
 
     var audioList: [String: Any] = [:]
