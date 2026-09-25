@@ -13,22 +13,24 @@ enum MyError: Error {
  */
 @objc(NativeAudio)
 public class NativeAudio: CAPPlugin, CAPBridgedPlugin {
-    public let identifier = "NativeAudio" 
-    public let jsName = "NativeAudio" 
+    public let identifier = "NativeAudio"
+    public let jsName = "NativeAudio"
+    // Every method stays synchronous: play, pause, resume, stop, loop and unload change the players in the order of
+    // the calls, which async methods would not keep.
     public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "configure", returnType: .promise),
-        CAPPluginMethod(name: "preload", returnType: .promise),
-        CAPPluginMethod(name: "play", returnType: .promise),
-        CAPPluginMethod(name: "stop", returnType: .promise),
-        CAPPluginMethod(name: "loop", returnType: .promise),
-        CAPPluginMethod(name: "pause", returnType: .promise),
-        CAPPluginMethod(name: "resume", returnType: .promise),
-        CAPPluginMethod(name: "unload", returnType: .promise),
-        CAPPluginMethod(name: "setVolume", returnType: .promise),
-        CAPPluginMethod(name: "getCurrentTime", returnType: .promise),
-        CAPPluginMethod(name: "getDuration", returnType: .promise),
-        CAPPluginMethod(name: "isPlaying", returnType: .promise),
-    ] 
+        .promise("configure", NativeAudio.configure),
+        .promise("preload", NativeAudio.preload),
+        .promise("play", NativeAudio.play),
+        .promise("stop", NativeAudio.stop),
+        .promise("loop", NativeAudio.loop),
+        .promise("pause", NativeAudio.pause),
+        .promise("resume", NativeAudio.resume),
+        .promise("unload", NativeAudio.unload),
+        .promise("setVolume", NativeAudio.setVolume),
+        .promise("getCurrentTime", NativeAudio.getCurrentTime),
+        .promise("getDuration", NativeAudio.getDuration),
+        .promise("isPlaying", NativeAudio.isPlaying)
+    ]
 
     var audioList: [String: Any] = [:]
     var fadeMusic = false
@@ -47,7 +49,7 @@ public class NativeAudio: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    @objc func configure(_ call: CAPPluginCall) {
+    func configure(_ call: CAPPluginCall) {
         self.fadeMusic = call.getBool(Constant.FadeKey, false)
         do {
             if call.getBool(Constant.FocusAudio, false) {
@@ -61,11 +63,11 @@ public class NativeAudio: CAPPlugin, CAPBridgedPlugin {
         call.resolve()
     }
 
-    @objc func preload(_ call: CAPPluginCall) {
+    func preload(_ call: CAPPluginCall) {
         preloadAsset(call, isComplex: true)
     }
 
-    @objc func play(_ call: CAPPluginCall) {
+    func play(_ call: CAPPluginCall) {
         let audioId = call.getString(Constant.AssetIdKey) ?? ""
         let time = call.getDouble("time") ?? 0
         if audioId != "" {
@@ -98,81 +100,67 @@ public class NativeAudio: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    @objc private func getAudioAsset(_ call: CAPPluginCall) -> AudioAsset? {
+    /// The loaded asset the call names; throws when the call names none or it is not loaded.
+    private func getAudioAsset(_ call: CAPPluginCall) throws -> AudioAsset {
         let audioId = call.getString(Constant.AssetIdKey) ?? ""
         if audioId == "" {
-            call.reject(Constant.ErrorAssetId)
-            return nil
+            throw CAPPluginError(Constant.ErrorAssetId)
         }
-        if self.audioList.count > 0 {
-            let asset = self.audioList[audioId]
-            if asset != nil && asset is AudioAsset {
-                return asset as? AudioAsset
-            }
+        if let audioAsset = self.audioList[audioId] as? AudioAsset {
+            return audioAsset
         }
-        call.reject(Constant.ErrorAssetNotFound + " - " + audioId)
-        return nil
+        throw CAPPluginError(Constant.ErrorAssetNotFound + " - " + audioId)
     }
 
-    @objc func getDuration(_ call: CAPPluginCall) {
-        guard let audioAsset: AudioAsset = self.getAudioAsset(call) else {
-            return
-        }
+    func getDuration(_ call: CAPPluginCall) throws {
+        let audioAsset = try self.getAudioAsset(call)
 
         call.resolve([
             "duration": audioAsset.getDuration()
         ])
     }
 
-    @objc func getCurrentTime(_ call: CAPPluginCall) {
-        guard let audioAsset: AudioAsset = self.getAudioAsset(call) else {
-            return
-        }
+    func getCurrentTime(_ call: CAPPluginCall) throws {
+        let audioAsset = try self.getAudioAsset(call)
 
         call.resolve([
             "currentTime": audioAsset.getCurrentTime()
         ])
     }
 
-    @objc func resume(_ call: CAPPluginCall) {
-        guard let audioAsset: AudioAsset = self.getAudioAsset(call) else {
-            return
-        }
+    func resume(_ call: CAPPluginCall) throws {
+        let audioAsset = try self.getAudioAsset(call)
 
         audioAsset.resume()
         call.resolve()
     }
 
-    @objc func pause(_ call: CAPPluginCall) {
-        guard let audioAsset: AudioAsset = self.getAudioAsset(call) else {
-            return
-        }
+    func pause(_ call: CAPPluginCall) throws {
+        let audioAsset = try self.getAudioAsset(call)
 
         audioAsset.pause()
         call.resolve()
     }
 
-    @objc func stop(_ call: CAPPluginCall) {
+    func stop(_ call: CAPPluginCall) throws {
         let audioId = call.getString(Constant.AssetIdKey) ?? ""
 
         do {
             try stopAudio(audioId: audioId)
-            call.resolve()
         } catch {
-            call.reject(Constant.ErrorAssetNotFound)
+            throw CAPPluginError(Constant.ErrorAssetNotFound)
         }
+        call.resolve()
     }
 
-    @objc func loop(_ call: CAPPluginCall) {
-        guard let audioAsset: AudioAsset = self.getAudioAsset(call) else {
-            return
-        }
+    func loop(_ call: CAPPluginCall) throws {
+        let audioAsset = try self.getAudioAsset(call)
 
         audioAsset.loop()
         call.resolve()
     }
 
-    @objc func unload(_ call: CAPPluginCall) {
+    func unload(_ call: CAPPluginCall) {
         let audioId = call.getString(Constant.AssetIdKey) ?? ""
         if self.audioList.count > 0 {
             let asset = self.audioList[audioId]
@@ -185,10 +173,8 @@ public class NativeAudio: CAPPlugin, CAPBridgedPlugin {
         call.resolve()
     }
 
-    @objc func setVolume(_ call: CAPPluginCall) {
-        guard let audioAsset: AudioAsset = self.getAudioAsset(call) else {
-            return
-        }
+    func setVolume(_ call: CAPPluginCall) throws {
+        let audioAsset = try self.getAudioAsset(call)
 
         let volume = call.getFloat(Constant.Volume) ?? 1.0
 
@@ -196,10 +182,8 @@ public class NativeAudio: CAPPlugin, CAPBridgedPlugin {
         call.resolve()
     }
 
-    @objc func isPlaying(_ call: CAPPluginCall) {
-        guard let audioAsset: AudioAsset = self.getAudioAsset(call) else {
-            return
-        }
+    func isPlaying(_ call: CAPPluginCall) throws {
+        let audioAsset = try self.getAudioAsset(call)
 
         call.resolve([
             "isPlaying": audioAsset.isPlaying()
