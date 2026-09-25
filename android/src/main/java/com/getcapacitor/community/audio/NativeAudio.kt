@@ -10,7 +10,9 @@ import android.util.Log
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
+import com.getcapacitor.PluginException
 import com.getcapacitor.PluginMethod
+import com.getcapacitor.PluginThread
 import com.getcapacitor.annotation.CapacitorPlugin
 import com.getcapacitor.annotation.Permission
 import com.getcapacitor.community.audio.Constant.ASSET_ID
@@ -92,27 +94,17 @@ public class NativeAudio :
         Thread { preloadAsset(call) }.start()
     }
 
-    @PluginMethod
+    // The players are driven from the main thread
+    @PluginMethod(thread = PluginThread.MAIN)
     public fun play(call: PluginCall) {
-        activity.runOnUiThread { playOrLoop("play", call) }
+        playOrLoop("play", call)
     }
 
     @PluginMethod
     public fun getCurrentTime(call: PluginCall) {
+        val asset = getLoadedAsset(call)
         try {
-            val audioId = call.getString(ASSET_ID)
-
-            if (!isStringValid(audioId)) {
-                call.reject("$ERROR_AUDIO_ID_MISSING - $audioId")
-                return
-            }
-
-            val asset = audioAssetList[audioId]
-            if (asset != null) {
-                call.resolve(JSObject().put("currentTime", asset.currentPosition))
-            } else {
-                call.reject("$ERROR_AUDIO_ASSET_MISSING - $audioId")
-            }
+            call.resolve(JSObject().put("currentTime", asset.currentPosition))
         } catch (ex: Exception) {
             call.reject(ex.message)
         }
@@ -120,45 +112,29 @@ public class NativeAudio :
 
     @PluginMethod
     public fun getDuration(call: PluginCall) {
+        val asset = getLoadedAsset(call)
         try {
-            val audioId = call.getString(ASSET_ID)
-
-            if (!isStringValid(audioId)) {
-                call.reject("$ERROR_AUDIO_ID_MISSING - $audioId")
-                return
-            }
-
-            val asset = audioAssetList[audioId]
-            if (asset != null) {
-                call.resolve(JSObject().put("duration", asset.duration))
-            } else {
-                call.reject("$ERROR_AUDIO_ASSET_MISSING - $audioId")
-            }
+            call.resolve(JSObject().put("duration", asset.duration))
         } catch (ex: Exception) {
             call.reject(ex.message)
         }
     }
 
-    @PluginMethod
+    @PluginMethod(thread = PluginThread.MAIN)
     public fun loop(call: PluginCall) {
-        activity.runOnUiThread { playOrLoop("loop", call) }
+        playOrLoop("loop", call)
     }
 
     @PluginMethod
     public fun pause(call: PluginCall) {
+        val audioId = call.getString(ASSET_ID)
+        val asset = audioAssetList[audioId] ?: throw PluginException("$ERROR_ASSET_NOT_LOADED - $audioId")
         try {
-            val audioId = call.getString(ASSET_ID)
-
-            val asset = audioAssetList[audioId]
-            if (asset != null) {
-                if (asset.pause()) {
-                    resumeList.add(asset)
-                }
-
-                call.resolve()
-            } else {
-                call.reject("$ERROR_ASSET_NOT_LOADED - $audioId")
+            if (asset.pause()) {
+                resumeList.add(asset)
             }
+
+            call.resolve()
         } catch (ex: Exception) {
             call.reject(ex.message)
         }
@@ -166,17 +142,12 @@ public class NativeAudio :
 
     @PluginMethod
     public fun resume(call: PluginCall) {
+        val audioId = call.getString(ASSET_ID)
+        val asset = audioAssetList[audioId] ?: throw PluginException("$ERROR_ASSET_NOT_LOADED - $audioId")
         try {
-            val audioId = call.getString(ASSET_ID)
-
-            val asset = audioAssetList[audioId]
-            if (asset != null) {
-                asset.resume()
-                resumeList.add(asset)
-                call.resolve()
-            } else {
-                call.reject("$ERROR_ASSET_NOT_LOADED - $audioId")
-            }
+            asset.resume()
+            resumeList.add(asset)
+            call.resolve()
         } catch (ex: Exception) {
             call.reject(ex.message)
         }
@@ -184,16 +155,11 @@ public class NativeAudio :
 
     @PluginMethod
     public fun stop(call: PluginCall) {
+        val audioId = call.getString(ASSET_ID)
+        val asset = audioAssetList[audioId] ?: throw PluginException("$ERROR_ASSET_NOT_LOADED - $audioId")
         try {
-            val audioId = call.getString(ASSET_ID)
-
-            val asset = audioAssetList[audioId]
-            if (asset != null) {
-                asset.stop()
-                call.resolve()
-            } else {
-                call.reject("$ERROR_ASSET_NOT_LOADED - $audioId")
-            }
+            asset.stop()
+            call.resolve()
         } catch (ex: Exception) {
             call.reject(ex.message)
         }
@@ -245,20 +211,9 @@ public class NativeAudio :
 
     @PluginMethod
     public fun isPlaying(call: PluginCall) {
+        val asset = getLoadedAsset(call)
         try {
-            val audioId = call.getString(ASSET_ID)
-
-            if (!isStringValid(audioId)) {
-                call.reject("$ERROR_AUDIO_ID_MISSING - $audioId")
-                return
-            }
-
-            val asset = audioAssetList[audioId]
-            if (asset != null) {
-                call.resolve(JSObject().put("isPlaying", asset.isPlaying))
-            } else {
-                call.reject("$ERROR_AUDIO_ASSET_MISSING - $audioId")
-            }
+            call.resolve(JSObject().put("isPlaying", asset.isPlaying))
         } catch (ex: Exception) {
             call.reject(ex.message)
         }
@@ -338,6 +293,17 @@ public class NativeAudio :
         } catch (ex: Exception) {
             call.reject(ex.message)
         }
+    }
+
+    /**
+     * The loaded asset the call names; throws when the call names none or it is not loaded.
+     */
+    private fun getLoadedAsset(call: PluginCall): AudioAsset {
+        val audioId = call.getString(ASSET_ID)
+        if (!isStringValid(audioId)) {
+            throw PluginException("$ERROR_AUDIO_ID_MISSING - $audioId")
+        }
+        return audioAssetList[audioId] ?: throw PluginException("$ERROR_AUDIO_ASSET_MISSING - $audioId")
     }
 
     private fun isStringValid(value: String?): Boolean = !value.isNullOrEmpty() && value != "null"
