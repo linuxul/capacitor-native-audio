@@ -1,6 +1,6 @@
 {
   "name": "@capacitor-community/native-audio",
-  "version": "8.0.0",
+  "version": "9.0.0",
   "description": "A native plugin for native audio engine",
   "main": "dist/plugin.js",
   "module": "dist/esm/index.js",
@@ -61,7 +61,7 @@
     "typescript": "^5.9.3"
   },
   "peerDependencies": {
-    "@capacitor/core": ">=8.0.0"
+    "@capacitor/core": ">=9.0.0"
   },
   "capacitor": {
     "android": {
